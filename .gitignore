@@ -1,0 +1,7 @@
+__pycache__/
+src/_pycache__
+src/segment/dataset
+src/segment/input
+src/segment/out
+input
+output
