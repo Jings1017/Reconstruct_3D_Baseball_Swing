@@ -75,7 +75,7 @@ cfg.SOLVER.STEPS = []        # do not decay learning rate
 cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 128   # The "RoIHead batch size". 128 is faster, and good enough for this toy dataset (default: 512)
 cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (bat). (see https://detectron2.readthedocs.io/tutorials/datasets.html#update-the-config-for-new-datasets)
 # NOTE: this config means the number of classes, but a few popular unofficial tutorials incorrect uses num_classes+1 here.
-cfg.OUTPUT_DIR = './out/model'
+cfg.OUTPUT_DIR = './out/model_sony_1122'
 os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
 trainer = DefaultTrainer(cfg) 
 trainer.resume_or_load(resume=False)
@@ -90,6 +90,6 @@ from detectron2.data import build_detection_test_loader
 cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")  # path to the model we just trained
 cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5   # set a custom testing threshold
 predictor = DefaultPredictor(cfg)
-evaluator = COCOEvaluator("bat_val", output_dir="./out/model")
+evaluator = COCOEvaluator("bat_val", output_dir=cfg.OUTPUT_DIR)
 val_loader = build_detection_test_loader(cfg, "bat_val")
 print(inference_on_dataset(predictor.model, val_loader, evaluator))
