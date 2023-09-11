@@ -14,6 +14,9 @@ from tqdm import tqdm, trange
 
 setup_logger()
 
+def cal_dist(x1, y1, x2, y2):
+    return pow((pow((x1-x2),2) + pow((y1-y2),2)), 0.5)
+
 def get_bat_dicts(img_dir):
     json_file = os.path.join(img_dir, "via_region_data.json")
     with open(json_file) as f:
@@ -52,14 +55,14 @@ def get_bat_dicts(img_dir):
     return dataset_dicts
 
 for d in ["train", "val"]:
-    DatasetCatalog.register("bat_" + d, lambda d=d: get_bat_dicts("dataset/sony_1122/" + d))
+    DatasetCatalog.register("bat_" + d, lambda d=d: get_bat_dicts("dataset/nthu_swing_dataset_0920/" + d))
     MetadataCatalog.get("bat_" + d).set(thing_classes=["baseball bat"])
 bat_metadata = MetadataCatalog.get("bat_train")
 
 
 cfg = get_cfg()
 cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
-cfg.OUTPUT_DIR = './out/model'
+cfg.OUTPUT_DIR = './out/model_nthu_bullpen'
 cfg.MODEL.DEVICE = 'cuda'
 cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 128   # The "RoIHead batch size". 128 is faster, and good enough for this toy dataset (default: 512)
 cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
@@ -76,12 +79,11 @@ coordinate2 = []
 coordinate_bbox = []
 curr_coordinate = [(0,0), (0,0)] # [head, tail]
 curr_coordinate1 = [(0,0), (0,0)]
-curr_coordinate2 = [(0,0), (0,0)]
-curr_bbox_coordinate = [(0,0), (0,0)]
+# curr_bbox_coordinate = [(0,0), (0,0)]
 
-video_subpath = 'baseball_swing_20221122/view1'
-video_name = '1_view1'
-out_target_name = '1_view1_target.npy'
+video_subpath = 'nthu_swing_0920'
+video_name = 'cam3-1_frames'
+out_target_name = 'cam3-1_target_v2.npy'
 
 in_dir = os.path.join('./input', video_subpath)
 out_dir = os.path.join('./out', video_subpath)
@@ -99,10 +101,10 @@ if not os.path.exists(output_folder):
 
 target_path = os.path.join(output_folder, out_target_name)
 
-
 for idx in trange(file_num-1):
-    file_name = 'frame{}.png'.format(idx+1)
+    file_name = 'cam3-1_frame_{}.png'.format(idx)
     file_path = os.path.join(frame_folder, file_name)
+
     mask_name = 'frame_{:04d}_mask.png'.format(idx)
     line_name = 'frame_{:04d}_line.png'.format(idx)
 
@@ -129,8 +131,6 @@ for idx in trange(file_num-1):
         y2 = int_boundingbox[0][3]
     else:
         coordinate1.append(curr_coordinate1)
-        coordinate2.append(curr_coordinate2)
-        # coordinate_bbox.append(curr_bbox_coordinate)
         continue
 
     check_range = int(min((x2-x1), (y2-y1))/5)
@@ -201,9 +201,8 @@ for idx in trange(file_num-1):
     min_x = min(tmp_x1, tmp_x2)
     min_y = min(tmp_y1, tmp_y2)
 
-    #=================== mode 1 =================
+    # mode 1
     if mode == 1:
-        # print('====== mode 1 =====')
         #---------------------------  top   seg ------------------------
         top_x1 = 0
         top_y1 = 0
@@ -266,11 +265,9 @@ for idx in trange(file_num-1):
         tmp_x2 = int((bottom_x1+bottom_x2)/2)
         tmp_y2 = int((bottom_y1+bottom_y2)/2)
 
-    #========================= mode 2 ===============
+    # mode 2
 
     elif mode == 2:
-
-        # print('====== mode 2 =====')
         #---------------------------  top   seg ------------------------
         top_x1 = 0
         top_y1 = 0
@@ -342,57 +339,54 @@ for idx in trange(file_num-1):
 
     max_len = max(len_tb1, len_tb2, len_tb3)
 
-    # calculate the distance
 
-    t12 = pow((top_x1-top_x2),2)+pow((top_y1-top_y2),2)
-    t1t = pow((top_x1-tmp_x1),2)+pow((top_y1-tmp_y1),2)
-    t2t = pow((top_x2-tmp_x1),2)+pow((top_y2-tmp_y1),2)
 
-    b12 = pow((bottom_x1-bottom_x2),2)+pow((bottom_y1-bottom_y2),2)
-    b1t = pow((bottom_x1-tmp_x1),2)+pow((bottom_y1-tmp_y1),2)
-    b2t = pow((bottom_x2-tmp_x1),2)+pow((bottom_y2-tmp_y1),2)
-
+    if len(coordinate1)>0:
+        last_ball_head = coordinate1[len(coordinate1)-1][0]
+        # print(last_ball_head)
+    print('-----')
     if max_len == len_tb1:
-        # print('len tb1')
-        # head = pow((curr_coordinate[1][0]-top_x1),2)+pow((curr_coordinate[1][1]-top_y1),2)
-        # tail = pow((curr_coordinate[1][0]-bottom_x1),2)+pow((curr_coordinate[1][1]-bottom_y1),2)
-        # if head >= tail or idx<=100 :
-        #     curr_coordinate = [(top_x1,top_y1), (bottom_x1,bottom_y1)]
-        # else:
-        #     curr_coordinate = [(bottom_x1,bottom_y1), (top_x1,top_y1)]
         curr_coordinate1 = [(top_x1,top_y1), (bottom_x1,bottom_y1)]
-        curr_coordinate2 = [(bottom_x1,bottom_y1), (top_x1,top_y1)]
-        cv2.circle(im, (top_x1,top_y1), 3, (0,255,0), 4)
-        cv2.circle(im, (bottom_x1,bottom_y1), 3, (0,255,0), 4)
-        cv2.line(im, (top_x1,top_y1), (bottom_x1,bottom_y1), (0,0,255), 5)
+        if len(coordinate1)>0:
+            head_dist = cal_dist(last_ball_head[0], last_ball_head[1], top_x1,top_y1)
+            print('h', head_dist)
+            tail_dist = cal_dist(last_ball_head[0], last_ball_head[1], bottom_x1,bottom_y1)
+            print('t', tail_dist)
+            if tail_dist<head_dist:
+                curr_coordinate1 = [(bottom_x1,bottom_y1), (top_x1,top_y1)]
+                print('change ! ')
+
     elif max_len == len_tb2:
-        # print('len tb2')
-        # head = pow((curr_coordinate[1][0]-top_x2),2)+pow((curr_coordinate[1][1]-top_y2),2)
-        # tail = pow((curr_coordinate[1][0]-bottom_x2),2)+pow((curr_coordinate[1][1]-bottom_y2),2)
-        # if head >= tail or idx<=100 :
-        #     curr_coordinate = [(top_x2,top_y2), (bottom_x2,bottom_y2)]
-        # else:
-        #     curr_coordinate = [(bottom_x2,bottom_y2), (top_x2,top_y2)]
         curr_coordinate1 = [(top_x2,top_y2), (bottom_x2,bottom_y2)]
-        curr_coordinate2 = [(bottom_x2,bottom_y2), (top_x2,top_y2)]
-        cv2.circle(im, (top_x2,top_y2), 3, (0,255,255), 4)
-        cv2.circle(im, (bottom_x2,bottom_y2), 3, (0,255,255), 4)
-        cv2.line(im, (top_x2,top_y2), (bottom_x2,bottom_y2), (0,0,255), 5)
+        if len(coordinate1)>0:
+            head_dist = cal_dist(last_ball_head[0], last_ball_head[1], top_x2,top_y2)
+            print('h', head_dist)
+            tail_dist = cal_dist(last_ball_head[0], last_ball_head[1], bottom_x2,bottom_y2)
+            print('t', tail_dist)
+            if tail_dist<head_dist:
+                curr_coordinate1 = [(bottom_x2,bottom_y2), (top_x2,top_y2)]
+                print('change ! ')
+
     else:
-        # head = pow((curr_coordinate[1][0]-tmp_x1),2)+pow((curr_coordinate[1][1]-tmp_y1),2)
-        # tail = pow((curr_coordinate[1][0]-tmp_x2),2)+pow((curr_coordinate[1][1]-tmp_y2),2)
-        # if head >= tail or idx<=100:
-        #     curr_coordinate = [(tmp_x1,tmp_y1), (tmp_x2,tmp_y2)]
-        # else:
-        #     curr_coordinate = [(tmp_x2,tmp_y2), (tmp_x1,tmp_y1)]
         curr_coordinate1 = [(tmp_x1,tmp_y1), (tmp_x2,tmp_y2)]
-        curr_coordinate2 = [(tmp_x2,tmp_y2), (tmp_x1,tmp_y1)]
-        cv2.circle(im, (tmp_x1,tmp_y1), 3, (255,0,0), 4)
-        cv2.circle(im, (tmp_x2,tmp_y2), 3, (255,0,0), 4)
-        cv2.line(im, (tmp_x1,tmp_y1), (tmp_x2,tmp_y2), (0,0,255), 5)
+        if len(coordinate1)>0:
+            head_dist = cal_dist(last_ball_head[0], last_ball_head[1], tmp_x1,tmp_y1)
+            print('h', head_dist)
+            tail_dist = cal_dist(last_ball_head[0], last_ball_head[1], tmp_x2,tmp_y2)
+            print('t', tail_dist)
+            if tail_dist<head_dist:
+                curr_coordinate1 = [(tmp_x2,tmp_y2), (tmp_x1,tmp_y1)]
+                print('change ! ')
+
+    # if idx==0 or idx==150:
+    #     curr_coordinate1[0],curr_coordinate1[1] = curr_coordinate1[1],curr_coordinate1[0]
+
+    cv2.circle(im, curr_coordinate1[0], 5, (255,0,0), 6)
+    cv2.circle(im, curr_coordinate1[1], 5, (0, 255,0), 6)
+    cv2.line(im, curr_coordinate1[0], curr_coordinate1[1], (0,0,255), 5)
+
 
     coordinate1.append(curr_coordinate1) 
-    coordinate2.append(curr_coordinate2)
 
     cv2.imwrite(mask_path, out.get_image()[:,:,::-1])
     cv2.imwrite(line_path, im)
