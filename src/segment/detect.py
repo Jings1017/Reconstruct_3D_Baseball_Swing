@@ -55,14 +55,14 @@ def get_bat_dicts(img_dir):
     return dataset_dicts
 
 for d in ["train", "val"]:
-    DatasetCatalog.register("bat_" + d, lambda d=d: get_bat_dicts("dataset/nthu_swing_dataset_0920/" + d))
+    DatasetCatalog.register("bat_" + d, lambda d=d: get_bat_dicts("dataset/sony_1122/" + d))
     MetadataCatalog.get("bat_" + d).set(thing_classes=["baseball bat"])
 bat_metadata = MetadataCatalog.get("bat_train")
 
 
 cfg = get_cfg()
 cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
-cfg.OUTPUT_DIR = './out/model_nthu_bullpen'
+cfg.OUTPUT_DIR = './out/model_sony_1122'
 cfg.MODEL.DEVICE = 'cuda'
 cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 128   # The "RoIHead batch size". 128 is faster, and good enough for this toy dataset (default: 512)
 cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
@@ -81,9 +81,9 @@ curr_coordinate = [(0,0), (0,0)] # [head, tail]
 curr_coordinate1 = [(0,0), (0,0)]
 # curr_bbox_coordinate = [(0,0), (0,0)]
 
-video_subpath = 'nthu_swing_0920'
-video_name = 'cam3-1_frames'
-out_target_name = 'cam3-1_target_v2.npy'
+video_subpath = 'baseball_swing_20221122/view2'
+video_name = '1_view2'
+out_target_name = '1_view2_target_v2.npy'
 
 in_dir = os.path.join('./input', video_subpath)
 out_dir = os.path.join('./out', video_subpath)
@@ -102,7 +102,7 @@ if not os.path.exists(output_folder):
 target_path = os.path.join(output_folder, out_target_name)
 
 for idx in trange(file_num-1):
-    file_name = 'cam3-1_frame_{}.png'.format(idx)
+    file_name = 'frame{}.png'.format(idx)
     file_path = os.path.join(frame_folder, file_name)
 
     mask_name = 'frame_{:04d}_mask.png'.format(idx)
@@ -343,43 +343,32 @@ for idx in trange(file_num-1):
 
     if len(coordinate1)>0:
         last_ball_head = coordinate1[len(coordinate1)-1][0]
-        # print(last_ball_head)
-    print('-----')
     if max_len == len_tb1:
         curr_coordinate1 = [(top_x1,top_y1), (bottom_x1,bottom_y1)]
         if len(coordinate1)>0:
             head_dist = cal_dist(last_ball_head[0], last_ball_head[1], top_x1,top_y1)
-            print('h', head_dist)
             tail_dist = cal_dist(last_ball_head[0], last_ball_head[1], bottom_x1,bottom_y1)
-            print('t', tail_dist)
             if tail_dist<head_dist:
                 curr_coordinate1 = [(bottom_x1,bottom_y1), (top_x1,top_y1)]
-                print('change ! ')
 
     elif max_len == len_tb2:
         curr_coordinate1 = [(top_x2,top_y2), (bottom_x2,bottom_y2)]
         if len(coordinate1)>0:
             head_dist = cal_dist(last_ball_head[0], last_ball_head[1], top_x2,top_y2)
-            print('h', head_dist)
             tail_dist = cal_dist(last_ball_head[0], last_ball_head[1], bottom_x2,bottom_y2)
-            print('t', tail_dist)
             if tail_dist<head_dist:
                 curr_coordinate1 = [(bottom_x2,bottom_y2), (top_x2,top_y2)]
-                print('change ! ')
 
     else:
         curr_coordinate1 = [(tmp_x1,tmp_y1), (tmp_x2,tmp_y2)]
         if len(coordinate1)>0:
             head_dist = cal_dist(last_ball_head[0], last_ball_head[1], tmp_x1,tmp_y1)
-            print('h', head_dist)
             tail_dist = cal_dist(last_ball_head[0], last_ball_head[1], tmp_x2,tmp_y2)
-            print('t', tail_dist)
             if tail_dist<head_dist:
                 curr_coordinate1 = [(tmp_x2,tmp_y2), (tmp_x1,tmp_y1)]
-                print('change ! ')
 
-    # if idx==0 or idx==150:
-    #     curr_coordinate1[0],curr_coordinate1[1] = curr_coordinate1[1],curr_coordinate1[0]
+    if idx==0 :
+        curr_coordinate1[0],curr_coordinate1[1] = curr_coordinate1[1],curr_coordinate1[0]
 
     cv2.circle(im, curr_coordinate1[0], 5, (255,0,0), 6)
     cv2.circle(im, curr_coordinate1[1], 5, (0, 255,0), 6)
